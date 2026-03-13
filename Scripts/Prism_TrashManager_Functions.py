@@ -67,15 +67,15 @@ class Prism_TrashManager_Functions(object):
 
     def onProjectBrowserStartup(self, browser):
         self.addTrashButton(browser)
+        #TODO: Have a Trash shelf with button like open but also recover file
 
     def onAssetMenu(self, origin, menu, path):
         moveAction = QAction("Move to Trash", origin)
-        #moveAction.triggered.connect(self.moveToTrash)
         moveAction.triggered.connect(lambda: self.moveToTrash(path))
         menu.addAction(moveAction)
 
     def moveToTrash(self, path):
-        #self.core.popup("GO TO TRASH")
+        #TODO: Move with the json file (and maybe preview)
         import os
         import shutil
 
