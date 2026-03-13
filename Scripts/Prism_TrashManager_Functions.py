@@ -44,8 +44,20 @@ class Prism_TrashManager_Functions(object):
         self.core = core
         self.plugin = plugin
 
+        #trashPath = os.path.join(self.core.projectPath, "01_Trash")
+
+        # Hook into the project start
         self.core.registerCallback(
-            "onProjectBrowserStartup", self.onProjectBrowserStartup, plugin=self
+            "onProjectBrowserStartup",
+            self.onProjectBrowserStartup,
+            plugin=self.plugin
+        )
+
+        # Hook into the Project Browser right-click menu
+        self.core.registerCallback(
+            "openPBFileContextMenu",
+            self.onAssetMenu,
+            plugin=self.plugin
         )
 
     # if returns true, the plugin will be loaded by Prism
@@ -55,6 +67,15 @@ class Prism_TrashManager_Functions(object):
 
     def onProjectBrowserStartup(self, browser):
         self.addTrashButton(browser)
+
+    def onAssetMenu(self, origin, menu, path):
+        moveAction = QAction("Move to Trash", origin)
+        #moveAction.triggered.connect(self.moveToTrash)
+        moveAction.triggered.connect(lambda: self.moveToTrash(path))
+        menu.addAction(moveAction)
+
+    def moveToTrash(self, path):
+        self.core.popup("GO TO TRASH")
 
     def addTrashButton(self, browser):
         trashAction = QAction("Open Trash", browser)
