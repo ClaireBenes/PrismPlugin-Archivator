@@ -75,7 +75,30 @@ class Prism_TrashManager_Functions(object):
         menu.addAction(moveAction)
 
     def moveToTrash(self, path):
-        self.core.popup("GO TO TRASH")
+        #self.core.popup("GO TO TRASH")
+        import os
+        import shutil
+
+        trashDir = os.path.join(self.core.projectPath, "01_Trash")
+        if not os.path.exists(trashDir):
+            os.makedirs(trashDir)
+
+        filename = os.path.basename(path)
+        target = os.path.join(trashDir, filename)
+
+        # avoid overwrite
+        i = 1
+        name, ext = os.path.splitext(filename)
+
+        # create new file that end with _i if the file name already exist in the trash
+        while os.path.exists(target):
+            target = os.path.join(trashDir, f"{name}_{i}{ext}")
+            i += 1
+
+        shutil.move(path, target)
+
+        self.core.pb.refreshUI()
+        self.core.popup(f"Moved to Trash:\n{filename}")
 
     def addTrashButton(self, browser):
         trashAction = QAction("Open Trash", browser)
