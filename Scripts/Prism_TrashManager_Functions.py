@@ -41,10 +41,15 @@ from PrismUtils.Decorators import err_catcher_plugin as err_catcher
 
 class Prism_TrashManager_Functions(object):
     def __init__(self, core, plugin):
+        import os
+
         self.core = core
         self.plugin = plugin
 
-        #trashPath = os.path.join(self.core.projectPath, "01_Trash")
+        #create trash folder
+        self.trashDir = os.path.join(self.core.projectPath, "01_Trash")
+        if not os.path.exists(self.trashDir):
+            os.makedirs(self.trashDir)
 
         # Hook into the project start
         self.core.registerCallback(
@@ -74,31 +79,36 @@ class Prism_TrashManager_Functions(object):
         moveAction.triggered.connect(lambda: self.moveToTrash(path))
         menu.addAction(moveAction)
 
-    def moveToTrash(self, path):
+    def moveToTrash(self, filepath):
         #TODO: Move with the json file (and maybe preview)
         import os
         import shutil
 
-        trashDir = os.path.join(self.core.projectPath, "01_Trash")
-        if not os.path.exists(trashDir):
-            os.makedirs(trashDir)
+        folder = os.path.dirname(filepath)
+        filename = os.path.basename(filepath)
 
-        filename = os.path.basename(path)
-        target = os.path.join(trashDir, filename)
+        # remove extension
+        base = os.path.splitext(filename)[0]
 
-        # avoid overwrite
-        i = 1
-        name, ext = os.path.splitext(filename)
+        # take all files with base name in folder
+        for f in os.listdir(folder):
 
-        # create new file that end with _i if the file name already exist in the trash
-        while os.path.exists(target):
-            target = os.path.join(trashDir, f"{name}_{i}{ext}")
-            i += 1
+            if f.startswith(base):
+                src = os.path.join(folder, f)
+                dst = os.path.join(self.trashDir, f)
 
-        shutil.move(path, target)
+                # avoid overwriting (if 2 files with same name)
+                i = 1
+                while os.path.exists(dst):
+                    name, ext = os.path.splitext(f)
+                    # create new file that end with _i if the file name already exist in the trash
+                    dst = os.path.join(self.trashDir, f"{name}_{i}{ext}")
+                    i += 1
+
+                shutil.move(src, dst)
 
         self.core.pb.refreshUI()
-        self.core.popup(f"Moved to Trash:\n{filename}")
+        self.core.popup(f"Moved {base} to Trash")
 
     def addTrashButton(self, browser):
         trashAction = QAction("Open Trash", browser)
@@ -107,12 +117,6 @@ class Prism_TrashManager_Functions(object):
         browser.menubar.addAction(trashAction)
 
     def openTrash(self):
-        import os
         import subprocess
 
-        trashPath = os.path.join(self.core.projectPath, "01_Trash")
-
-        if not os.path.exists(trashPath):
-            os.makedirs(trashPath)
-
-        subprocess.Popen(f'explorer "{trashPath}"')
+        subprocess.Popen(f'explorer "{self.trashDir}"')
