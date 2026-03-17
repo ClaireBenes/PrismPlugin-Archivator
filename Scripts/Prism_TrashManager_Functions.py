@@ -58,7 +58,7 @@ class Prism_TrashManager_Functions(object):
             plugin=self.plugin
         )
 
-        # Hook into the Project Browser right-click menu
+        # Hook when an asset version is created
         self.core.registerCallback(
             "onVersionCreated",
             self.onVersionCreated,
@@ -80,9 +80,6 @@ class Prism_TrashManager_Functions(object):
 
         self.addTrashButton(browser)
 
-    def onVersionCreated(self, filepath):
-        self.toggleAutoDelete(filepath, True)
-
     def onRighClikAssetFile(self, origin, menu, path):
         #TODO : Make sure we have an asset selected and not click outside one
         trashMenu = QMenu("Trash", menu)
@@ -101,6 +98,9 @@ class Prism_TrashManager_Functions(object):
         trashMenu.addAction(autoDeleteAction)
         trashMenu.addSeparator()
         trashMenu.addAction(moveAction)
+
+    def onVersionCreated(self, filepath):
+        self.toggleAutoDelete(filepath, True)
 
     # ----- JSON -----
     def getVersionJson(self, filepath):
@@ -128,6 +128,7 @@ class Prism_TrashManager_Functions(object):
         with open(path, "w") as f:
             json.dump(data, f, indent=4)
 
+    # Auto delete logic
     def isAutoDeleteEnabled(self, filepath):
         jsonPath = self.getVersionJson(filepath)
         data = self.readJson(jsonPath)
@@ -141,6 +142,28 @@ class Prism_TrashManager_Functions(object):
         data["autoDelete"] = enabled
 
         self.writeJson(jsonPath, data)
+
+    # trash logic
+    def addTrashButton(self, browser):
+        trashMenu = QMenu("Trash", browser.menubar)
+        trashMenu.setObjectName(u"trashMenu")
+
+        openTrashAction = QAction("Open Trash", browser)
+        openTrashAction.triggered.connect(self.openTrash)
+
+        recoverTrashAction = QAction("Recover File", browser)
+        recoverTrashAction.triggered.connect(self.recoverTrash)
+
+        clearTrashAction = QAction("Clear Trash", browser)
+        clearTrashAction.triggered.connect(self.clearTrash)
+
+        browser.menubar.addMenu(trashMenu)
+        browser.menubar.addAction(trashMenu.menuAction())
+
+        trashMenu.addAction(openTrashAction)
+        trashMenu.addAction(recoverTrashAction)
+        trashMenu.addSeparator()
+        trashMenu.addAction(clearTrashAction)
 
     def moveToTrash(self, filepath):
         import os
@@ -171,27 +194,6 @@ class Prism_TrashManager_Functions(object):
 
         self.core.pb.refreshUI()
         self.core.popup(f"Moved {base} to Trash")
-
-    def addTrashButton(self, browser):
-        trashMenu = QMenu("Trash", browser.menubar)
-        trashMenu.setObjectName(u"trashMenu")
-
-        openTrashAction = QAction("Open Trash", browser)
-        openTrashAction.triggered.connect(self.openTrash)
-
-        recoverTrashAction = QAction("Recover File", browser)
-        recoverTrashAction.triggered.connect(self.recoverTrash)
-
-        clearTrashAction = QAction("Clear Trash", browser)
-        clearTrashAction.triggered.connect(self.clearTrash)
-
-        browser.menubar.addMenu(trashMenu)
-        browser.menubar.addAction(trashMenu.menuAction())
-
-        trashMenu.addAction(openTrashAction)
-        trashMenu.addAction(recoverTrashAction)
-        trashMenu.addSeparator()
-        trashMenu.addAction(clearTrashAction)
 
     def openTrash(self):
         import subprocess
