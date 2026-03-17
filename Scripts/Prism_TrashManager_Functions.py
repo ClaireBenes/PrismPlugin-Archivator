@@ -203,5 +203,30 @@ class Prism_TrashManager_Functions(object):
         pass
 
     def clearTrash(self):
-        #TODO: Have a pop up asking if they are sure to clear the entire trash
-        pass
+        import os
+        import shutil
+
+        #verify folder exist
+        if not os.path.exists(self.trashDir):
+            return
+
+        # Pop up to make sure the user want to empty the trash
+        reply = QMessageBox.question(
+            None,
+            "Confirm Trash Clear",
+            "Are you sure you want to empty the trash?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+
+        if reply != QMessageBox.Yes:
+            return
+
+        # delete files in folders
+        for filename in os.listdir(self.trashDir):
+            path = os.path.join(self.trashDir, filename)
+            if os.path.isfile(path) or os.path.islink(path):
+                os.remove(path)  # delete file or symlink
+            elif os.path.isdir(path):
+                shutil.rmtree(path)  # delete folder recursively
+
+        self.core.popup("Trash cleared!")
