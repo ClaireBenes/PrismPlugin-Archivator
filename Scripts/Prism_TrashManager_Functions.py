@@ -81,7 +81,11 @@ class Prism_TrashManager_Functions(object):
         self.addTrashButton(browser)
 
     def onRighClikAssetFile(self, origin, menu, path):
-        #TODO : Make sure we have an asset selected and not click outside one
+        import os
+        if not path or not os.path.splitext(path)[1]:
+            # no extension - probably a folder - ignore
+            return
+
         trashMenu = QMenu("Trash", menu)
         menu.addMenu(trashMenu)
 
