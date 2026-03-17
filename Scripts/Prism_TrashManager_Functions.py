@@ -120,24 +120,24 @@ class Prism_TrashManager_Functions(object):
         if not os.path.exists(path):
             return {}
 
-        with open(path, "r") as f:
+        with open(path, "r") as file:
             try:
-                return json.load(f)
+                return json.load(file)
             except:
                 return {}
 
     def writeJson(self, path, data):
         import json
 
-        with open(path, "w") as f:
-            json.dump(data, f, indent=4)
+        with open(path, "w") as file:
+            json.dump(data, file, indent=4)
 
     # Auto delete logic
     def isAutoDeleteEnabled(self, filepath):
         jsonPath = self.getVersionJson(filepath)
         data = self.readJson(jsonPath)
 
-        return data.get("autoDelete", True)  # default = True
+        return data.get("autoDelete", True) #if key is missing, return True by default
 
     def toggleAutoDelete(self, filepath, enabled):
         jsonPath = self.getVersionJson(filepath)
@@ -181,7 +181,6 @@ class Prism_TrashManager_Functions(object):
 
         # take all files with base name in folder
         for f in os.listdir(folder):
-
             if f.startswith(base):
                 src = os.path.join(folder, f)
                 dst = os.path.join(self.trashDir, f)
