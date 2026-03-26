@@ -31,6 +31,20 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Prism.  If not, see <https://www.gnu.org/licenses/>.
 
+import sys
+import os
+
+# ---------------------------
+# Add Archivator to Python path
+# ---------------------------
+archivator_root = r"C:\Users\claire.benes\Documents\PythonProject\Archivator\python"
+if archivator_root not in sys.path:
+    sys.path.append(archivator_root)
+
+# safely import Archivator modules
+from services.archive_service import ArchiveService
+from core.registry import ProjectRegistry
+from core.exceptions import ArchivatorError
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -38,27 +52,39 @@ from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher_plugin as err_catcher
 
+class PrismArchivatorPlugin:
+    """
+    Prism plugin that integrates with Archivator.
 
-class Prism_TrashManager_Functions(object):
+    Responsibilities:
+    - Hook into Prism UI
+    - Forward trash/restore operations to Archivator
+    - Ensure Archivator is required
+    """
+
     def __init__(self, core, plugin):
         self.core = core
         self.plugin = plugin
 
-        # Hook into the project start
+        # Initialize Archivator
+        config_path = os.path.join(archivator_root, "config", "projects.json")
+        self.registry = ProjectRegistry(config_path)
+        self.registry.load()
+        self.archivator = ArchiveService(self.registry)
+
+        # Hook into Prism callbacks
         self.core.registerCallback(
             "onProjectBrowserStartup",
             self.onProjectBrowserStartup,
             plugin=self.plugin
         )
 
-        # Hook into the Project Browser right-click menu
         self.core.registerCallback(
             "openPBFileContextMenu",
-            self.onRighClikAssetFile,
+            self.onRightClickAssetFile,
             plugin=self.plugin
         )
 
-        # Hook when an asset version is created
         self.core.registerCallback(
             "onVersionCreated",
             self.onVersionCreated,
@@ -70,166 +96,121 @@ class Prism_TrashManager_Functions(object):
     def isActive(self):
         return True
 
+    # -----------------------------
+    # Prism hooks
+    # -----------------------------
     def onProjectBrowserStartup(self, browser):
-        import os
+        # Add trash menu to Prism project browser
+        self.addTrashMenu(browser)
 
-        #create trash folder
-        self.trashDir = os.path.join(self.core.projectPath, "01_Trash")
-        if not os.path.exists(self.trashDir):
-            os.makedirs(self.trashDir)
-
-        self.addTrashButton(browser)
-
-    def onRighClikAssetFile(self, origin, menu, path):
-        import os
+    def onRightClickAssetFile(self, origin, menu, path):
         if not path or not os.path.splitext(path)[1]:
-            # no extension - probably a folder - ignore
-            return
+            return  # ignore folders
 
         trashMenu = QMenu("Trash", menu)
         menu.addMenu(trashMenu)
 
-        isEnabled = self.isAutoDeleteEnabled(path)
-
-        autoDeleteAction = QAction("Auto-delete is active", trashMenu)
-        autoDeleteAction.setCheckable(True)
-        autoDeleteAction.setChecked(isEnabled)
-        autoDeleteAction.toggled.connect(lambda checked: self.toggleAutoDelete(path, checked))
-
         moveAction = QAction("Move to Trash", trashMenu)
         moveAction.triggered.connect(lambda: self.moveToTrash(path))
-
-        trashMenu.addAction(autoDeleteAction)
-        trashMenu.addSeparator()
         trashMenu.addAction(moveAction)
 
     def onVersionCreated(self, filepath):
-        self.toggleAutoDelete(filepath, True)
+        # Example: automatically mark new versions as auto-delete (optional)
+        pass
 
-    # ----- JSON -----
-    def getVersionJson(self, filepath):
-        import os
-
-        base, _ = os.path.splitext(filepath)
-        return base + "versioninfo.json"
-
-    def readJson(self, path):
-        import os
-        import json
-
-        if not os.path.exists(path):
-            return {}
-
-        with open(path, "r") as file:
-            try:
-                return json.load(file)
-            except:
-                return {}
-
-    def writeJson(self, path, data):
-        import json
-
-        with open(path, "w") as file:
-            json.dump(data, file, indent=4)
-
-    # Auto delete logic
-    def isAutoDeleteEnabled(self, filepath):
-        jsonPath = self.getVersionJson(filepath)
-        data = self.readJson(jsonPath)
-
-        return data.get("autoDelete", True) #if key is missing, return True by default
-
-    def toggleAutoDelete(self, filepath, enabled):
-        jsonPath = self.getVersionJson(filepath)
-        data = self.readJson(jsonPath)
-
-        data["autoDelete"] = enabled
-
-        self.writeJson(jsonPath, data)
-
-    # trash logic
-    def addTrashButton(self, browser):
+    # -----------------------------
+    # Menu / UI
+    # -----------------------------
+    def addTrashMenu(self, browser):
         trashMenu = QMenu("Trash", browser.menubar)
-        trashMenu.setObjectName(u"trashMenu")
+        browser.menubar.addMenu(trashMenu)
 
         openTrashAction = QAction("Open Trash", browser)
         openTrashAction.triggered.connect(self.openTrash)
-
-        recoverTrashAction = QAction("Recover File", browser)
-        recoverTrashAction.triggered.connect(self.recoverTrash)
-
-        clearTrashAction = QAction("Clear Trash", browser)
-        clearTrashAction.triggered.connect(self.clearTrash)
-
-        browser.menubar.addMenu(trashMenu)
-        browser.menubar.addAction(trashMenu.menuAction())
-
         trashMenu.addAction(openTrashAction)
-        trashMenu.addAction(recoverTrashAction)
-        trashMenu.addSeparator()
-        trashMenu.addAction(clearTrashAction)
 
+        recoverAction = QAction("Recover File", browser)
+        recoverAction.triggered.connect(self.recoverTrash)
+        trashMenu.addAction(recoverAction)
+
+        clearAction = QAction("Clear Trash", browser)
+        clearAction.triggered.connect(self.clearTrash)
+        trashMenu.addAction(clearAction)
+
+    # -----------------------------
+    # Archivator integration
+    # -----------------------------
     def moveToTrash(self, filepath):
         import os
-        import shutil
 
-        folder = os.path.dirname(filepath)
-        filename = os.path.basename(filepath)
+        try:
+            dest = self.archivator.move_to_trash(filepath)
 
-        # remove extension
-        base = os.path.splitext(filename)[0]
+            # Extract asset name (last part before extension)
+            asset_name = os.path.splitext(os.path.basename(filepath))[0]
 
-        # take all files with base name in folder
-        for f in os.listdir(folder):
-            if f.startswith(base):
-                src = os.path.join(folder, f)
-                dst = os.path.join(self.trashDir, f)
+            self.core.pb.refreshUI()
+            self.core.popup(f"Moved '{asset_name}' to trash")
 
-                # avoid overwriting (if 2 files with same name)
-                i = 1
-                while os.path.exists(dst):
-                    name, ext = os.path.splitext(f)
-                    # create new file that end with _i if the file name already exist in the trash
-                    dst = os.path.join(self.trashDir, f"{name}_{i}{ext}")
-                    i += 1
-
-                shutil.move(src, dst)
-
-        self.core.pb.refreshUI()
-        self.core.popup(f"Moved {base} to Trash")
-
-    def openTrash(self):
-        import subprocess
-        subprocess.Popen(f'explorer "{self.trashDir}"')
+        except ArchivatorError as e:
+            self.core.popup(f"[Error] {e}")
 
     def recoverTrash(self):
+        # Implement UI to select file from trash, then:
+        # selected_file = ...
+        # self.archivator.restore(selected_file)
         pass
 
+    def openTrash(self):
+        """
+        Open the trash folder for the current project in Windows Explorer.
+        """
+        import subprocess
+
+        try:
+            # Resolve project using the active project path
+            project = self.archivator.resolver.resolve(self.core.projectPath)
+
+            trash_folder = project.trash_dir
+            if not os.path.exists(trash_folder):
+                os.makedirs(trash_folder)
+
+            # Open folder in Windows Explorer
+            subprocess.Popen(f'explorer "{trash_folder}"')
+
+
+        except ProjectNotFoundError as e:
+            self.core.popup(f"Cannot open trash: {e}")
+
+        except Exception as e:
+            self.core.popup(f"Unexpected error opening trash: {e}")
+
     def clearTrash(self):
-        import os
-        import shutil
+        """
+        Delete all files in the trash folder for the current project
+        using Archivator's service.
+        """
+        try:
+            # Resolve project from current folder (or selected asset)
+            project = self.archivator.resolver.resolve(self.core.projectPath)
 
-        #verify folder exist
-        if not os.path.exists(self.trashDir):
-            return
+            # Ask user to confirm
+            reply = QMessageBox.question(
+                None,
+                "Confirm Trash Clear",
+                f"Are you sure you want to empty the trash for project '{project.name}'?",
+                QMessageBox.Yes | QMessageBox.No
+            )
 
-        # Pop up to make sure the user want to empty the trash
-        reply = QMessageBox.question(
-            None,
-            "Confirm Trash Clear",
-            "Are you sure you want to empty the trash?",
-            QMessageBox.Yes | QMessageBox.No
-        )
+            if reply != QMessageBox.Yes:
+                return
 
-        if reply != QMessageBox.Yes:
-            return
+            # Call Archivator service to empty trash
+            self.archivator.empty_project_trash(project.id)
 
-        # delete files in folders
-        for filename in os.listdir(self.trashDir):
-            path = os.path.join(self.trashDir, filename)
-            if os.path.isfile(path) or os.path.islink(path):
-                os.remove(path)  # delete file or symlink
-            elif os.path.isdir(path):
-                shutil.rmtree(path)  # delete folder recursively
+            self.core.popup(f"Trash cleared for project '{project.name}'.")
 
-        self.core.popup("Trash cleared!")
+        except ProjectNotFoundError as e:
+            self.core.popup(f"Cannot clear trash: {e}")
+        except Exception as e:
+            self.core.popup(f"Unexpected error clearing trash: {e}")

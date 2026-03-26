@@ -33,10 +33,9 @@
 
 
 from Prism_TrashManager_Variables import Prism_TrashManager_Variables
-from Prism_TrashManager_Functions import Prism_TrashManager_Functions
+from Prism_TrashManager_Functions import PrismArchivatorPlugin
 
-
-class Prism_TrashManager(Prism_TrashManager_Variables, Prism_TrashManager_Functions):
+class Prism_TrashManager(Prism_TrashManager_Variables, PrismArchivatorPlugin):
     def __init__(self, core):
         Prism_TrashManager_Variables.__init__(self, core, self)
-        Prism_TrashManager_Functions.__init__(self, core, self)
+        PrismArchivatorPlugin.__init__(self, core, self)
