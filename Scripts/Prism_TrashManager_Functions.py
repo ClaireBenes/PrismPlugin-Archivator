@@ -163,21 +163,10 @@ class PrismArchivatorPlugin:
 
     def openTrash(self):
         """
-        Open the trash folder for the current project in Windows Explorer.
+        Open the trash folder for the current Prism project.
         """
-        import subprocess
-
         try:
-            # Resolve project using the active project path
-            project = self.archivator.resolver.resolve(self.core.projectPath)
-
-            trash_folder = project.trash_dir
-            if not os.path.exists(trash_folder):
-                os.makedirs(trash_folder)
-
-            # Open folder in Windows Explorer
-            subprocess.Popen(f'explorer "{trash_folder}"')
-
+            self.archivator.open_trash_from_path(self.core.projectPath)
 
         except ProjectNotFoundError as e:
             self.core.popup(f"Cannot open trash: {e}")
