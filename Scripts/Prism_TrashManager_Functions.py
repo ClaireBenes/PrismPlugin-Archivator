@@ -44,7 +44,7 @@ if archivator_root not in sys.path:
 # safely import Archivator modules
 from services.archive_service import ArchiveService
 from core.registry import ProjectRegistry
-from core.exceptions import ArchivatorError
+from core.exceptions import ProjectNotFoundError, ArchivatorError
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -156,10 +156,46 @@ class PrismArchivatorPlugin:
             self.core.popup(f"[Error] {e}")
 
     def recoverTrash(self):
-        # Implement UI to select file from trash, then:
-        # selected_file = ...
-        # self.archivator.restore(selected_file)
-        pass
+        """
+        Let the user select one file from the current project's trash
+        and restore the whole metadata group.
+        """
+        try:
+            project = self.archivator.get_project_from_path(self.core.projectPath)
+            trash_folder = project.trash_dir
+
+            if not os.path.exists(trash_folder):
+                self.core.popup(f"Trash folder does not exist:\n{trash_folder}")
+                return
+
+            selected_file, _ = QFileDialog.getOpenFileName(
+                None,
+                "Recover File From Trash",
+                trash_folder,
+                "All Files (*)"
+            )
+
+            if not selected_file:
+                return
+
+            restored_path = self.archivator.restore(selected_file)
+            filename = os.path.basename(restored_path)
+
+            self.core.pb.refreshUI()
+
+            self.core.popup(f"Recovered:\n{filename}")
+
+        except ProjectNotFoundError as e:
+            self.core.popup(f"Cannot recover from trash: {e}")
+
+        except FileNotFoundError as e:
+            self.core.popup(f"Cannot recover file: {e}")
+
+        except ArchivatorError as e:
+            self.core.popup(f"Archivator error: {e}")
+
+        except Exception as e:
+            self.core.popup(f"Unexpected error recovering trash: {e}")
 
     def openTrash(self):
         """
