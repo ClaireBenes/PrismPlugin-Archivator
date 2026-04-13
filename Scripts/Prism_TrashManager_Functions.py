@@ -144,13 +144,22 @@ class PrismArchivatorPlugin:
         import os
 
         try:
-            dest = self.archivator.move_to_trash(filepath)
-
-            # Extract asset name (last part before extension)
             asset_name = os.path.splitext(os.path.basename(filepath))[0]
 
+            reply = QMessageBox.question(
+                None,
+                "Move to Trash",
+                f"Move '{asset_name}' to trash?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+
+            if reply != QMessageBox.Yes:
+                return
+
+            self.archivator.move_to_trash(filepath)
+
             self.core.pb.refreshUI()
-            self.core.popup(f"Moved '{asset_name}' to trash")
 
         except ArchivatorError as e:
             self.core.popup(f"[Error] {e}")
@@ -178,20 +187,10 @@ class PrismArchivatorPlugin:
             if not selected_file:
                 return
 
-            restored_path = self.archivator.restore(selected_file)
-            filename = os.path.basename(restored_path)
+            self.archivator.restore(selected_file)
 
-            try:
-                self.core.configs.clearCache()
-            except Exception:
-                pass
-
-            try:
-                self.core.pb.refreshUI()
-            except Exception:
-                pass
-
-            self.core.popup(f"Recovered:\n{filename}")
+            self.core.pb.refreshUI()
+            self.core.configs.clearCache()
 
         except ProjectNotFoundError as e:
             self.core.popup(f"Cannot recover from trash: {e}")
