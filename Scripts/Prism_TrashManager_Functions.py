@@ -182,6 +182,7 @@ class PrismArchivatorPlugin:
             filename = os.path.basename(restored_path)
 
             self.core.pb.refreshUI()
+            self.core.configs.clearCache()
 
             self.core.popup(f"Recovered:\n{filename}")
 
