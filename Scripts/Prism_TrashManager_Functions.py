@@ -157,10 +157,11 @@ class PrismArchivatorPlugin:
 
     def recoverTrash(self):
         """
-        Let the user select one file from the current project's trash
-        and restore the whole metadata group.
+        Let the user select one recoverable trash group and restore it.
         """
         try:
+            from ui.dialogs.recover_trash_dialog import RecoverTrashDialog
+
             project = self.archivator.get_project_from_path(self.core.projectPath)
             trash_folder = project.trash_dir
 
@@ -168,21 +169,27 @@ class PrismArchivatorPlugin:
                 self.core.popup(f"Trash folder does not exist:\n{trash_folder}")
                 return
 
-            selected_file, _ = QFileDialog.getOpenFileName(
-                None,
-                "Recover File From Trash",
-                trash_folder,
-                "All Files (*)"
-            )
+            dialog = RecoverTrashDialog(trash_folder)
 
+            if dialog.exec() != QDialog.Accepted:
+                return
+
+            selected_file = dialog.get_selected_file()
             if not selected_file:
                 return
 
             restored_path = self.archivator.restore(selected_file)
             filename = os.path.basename(restored_path)
 
-            self.core.pb.refreshUI()
-            self.core.configs.clearCache()
+            try:
+                self.core.configs.clearCache()
+            except Exception:
+                pass
+
+            try:
+                self.core.pb.refreshUI()
+            except Exception:
+                pass
 
             self.core.popup(f"Recovered:\n{filename}")
 
