@@ -42,9 +42,9 @@ if archivator_root not in sys.path:
     sys.path.append(archivator_root)
 
 # safely import Archivator modules
-from services.archive_service import ArchiveService
-from core.registry import ProjectRegistry
-from core.exceptions import ProjectNotFoundError, ArchivatorError
+from archivator.services.archive_service import ArchiveService
+from archivator.core.registry import ProjectRegistry
+from archivator.core.exceptions import ProjectNotFoundError, ArchivatorError
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -67,7 +67,7 @@ class PrismArchivatorPlugin:
         self.plugin = plugin
 
         # Initialize Archivator
-        config_path = os.path.join(archivator_root, "config", "projects.json")
+        config_path = os.path.join(archivator_root, "archivator", "config", "projects.json")
         self.registry = ProjectRegistry(config_path)
         self.registry.load()
         self.archivator = ArchiveService(self.registry)
@@ -102,6 +102,7 @@ class PrismArchivatorPlugin:
     def onProjectBrowserStartup(self, browser):
         # Add trash menu to Prism project browser
         self.addTrashMenu(browser)
+        self.addDeleteShortcut(browser)
 
     def onRightClickAssetFile(self, origin, menu, path):
         if not path or not os.path.splitext(path)[1]:
@@ -115,7 +116,7 @@ class PrismArchivatorPlugin:
         trashMenu.addAction(moveAction)
 
     def onVersionCreated(self, filepath):
-        # Example: automatically mark new versions as auto-delete (optional)
+        # automatically mark new versions as auto-delete
         pass
 
     # -----------------------------
@@ -169,7 +170,7 @@ class PrismArchivatorPlugin:
         Let the user select one recoverable trash group and restore it.
         """
         try:
-            from ui.dialogs.recover_trash_dialog import RecoverTrashDialog
+            from archivator.ui.dialogs.recover_trash_dialog import RecoverTrashDialog
 
             project = self.archivator.get_project_from_path(self.core.projectPath)
             trash_folder = project.trash_dir
@@ -246,3 +247,31 @@ class PrismArchivatorPlugin:
             self.core.popup(f"Cannot clear trash: {e}")
         except Exception as e:
             self.core.popup(f"Unexpected error clearing trash: {e}")
+
+
+    def addDeleteShortcut(self, browser):
+        """
+        Add Delete key shortcut to move the selected asset/version file to trash.
+        """
+        self.delete_shortcut = QShortcut(QKeySequence(Qt.Key_Delete), browser)
+        self.delete_shortcut.activated.connect(self.moveSelectedFileToTrash)
+
+    def moveSelectedFileToTrash(self):
+        """
+        Move the selected Project Browser file to trash.
+        """
+        filepath = self.getSelectedProjectBrowserFile()
+
+        self.moveToTrash(filepath)
+
+    def getSelectedProjectBrowserFile(self):
+        """
+        Return the currently selected scene file from Prism's Project Browser.
+        """
+        scene_browser = self.core.pb.sceneBrowser
+        path = scene_browser.getSelectedScenefile()
+
+        if path and os.path.isfile(path):
+            return path
+
+        return None
