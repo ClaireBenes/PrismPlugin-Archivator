@@ -18,11 +18,15 @@ All storage and trash logic is handled by Archivator.
 
 ## Dependency
 
-This plugin requires Archivator:
+This plugin uses Archivator as its backend.
 
 👉 https://github.com/ClaireBenes/Archivator
 
-Archivator must be installed and configured with your projects before using this plugin.
+Archivator is included in this plugin as a vendored dependency under:
+
+```text
+vendor/archivator/
+```
 
 ---
 
@@ -64,19 +68,57 @@ Archivator acts as the backend system managing:
 ## Requirements
 
 - Prism 2.0.18
-- Python 3.11
-- Archivator (local installation required)
 - Windows
+- Archivator project registry configured through the standalone Archivator app
 
 ---
 
-## Installation (Current)
+## Installation
 
-The plugin currently depends on a local Archivator setup.
+### 1. Install Archivator standalone:
 
-1. Clone both repositories:
+Archivator is available on PyPI:
 
 ```bash
-git clone https://github.com/ClaireBenes/Archivator
-git clone https://github.com/ClaireBenes/PrismPlugin-TrashManager
+pip install archivator
+```
 
+Launch the standalone application:
+
+```bash
+archivator
+```
+
+Use the Archivator UI to register your projects and configure their trash directories.
+
+Archivator stores its configuration in a shared user directory:
+```bash
+~/.archivator/
+```
+This configuration is shared between the standalone application and the Prism plugin.
+
+### 2. Install the Prism Plugin
+
+Clone or copy this repository into your Prism plugins directory.
+
+Example:
+```bash
+git clone https://github.com/ClaireBenes/PrismPlugin-TrashManager
+```
+Then place the plugin inside your Prism project or global plugin folder.
+
+### 3. Restart Prism
+After restarting Prism, the plugin will automatically use the projects configured in Archivator.
+No manual Python path setup is required.
+
+### Vendored Dependency
+
+This plugin includes a vendored copy of Archivator under:
+
+```bash
+vendor/archivator/
+```
+
+This avoids requiring users to install Archivator inside Prism's embedded Python environment.
+
+Prism already provides its own Qt/PySide environment, so only Archivator itself is vendored.
