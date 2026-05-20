@@ -34,17 +34,17 @@
 import sys
 import os
 
-# ---------------------------
-# Add Archivator to Python path
-# ---------------------------
-archivator_root = r"C:\Users\claire.benes\Documents\PythonProject\Archivator\python"
-if archivator_root not in sys.path:
-    sys.path.append(archivator_root)
+PLUGIN_ROOT = os.path.dirname(os.path.dirname(__file__))
+VENDOR_PATH = os.path.join(PLUGIN_ROOT, "vendor")
 
-# safely import Archivator modules
+if VENDOR_PATH not in sys.path:
+    sys.path.insert(0, VENDOR_PATH)
+
+from archivator.core.paths import CONFIG_PATH, ensure_app_dirs
 from archivator.services.archive_service import ArchiveService
 from archivator.core.registry import ProjectRegistry
 from archivator.core.exceptions import ProjectNotFoundError, ArchivatorError
+from archivator.core.paths import CONFIG_PATH
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -67,8 +67,8 @@ class PrismArchivatorPlugin:
         self.plugin = plugin
 
         # Initialize Archivator
-        config_path = os.path.join(archivator_root, "archivator", "config", "projects.json")
-        self.registry = ProjectRegistry(config_path)
+        ensure_app_dirs()
+        self.registry = ProjectRegistry(str(CONFIG_PATH))
         self.registry.load()
         self.archivator = ArchiveService(self.registry)
 
@@ -133,6 +133,8 @@ class PrismArchivatorPlugin:
         recoverAction = QAction("Recover File", browser)
         recoverAction.triggered.connect(self.recoverTrash)
         trashMenu.addAction(recoverAction)
+
+        trashMenu.addSeparator()
 
         clearAction = QAction("Clear Trash", browser)
         clearAction.triggered.connect(self.clearTrash)
@@ -206,9 +208,6 @@ class PrismArchivatorPlugin:
             self.core.popup(f"Unexpected error recovering trash: {e}")
 
     def openTrash(self):
-        """
-        Open the trash folder for the current Prism project.
-        """
         try:
             self.archivator.open_trash_from_path(self.core.projectPath)
 
